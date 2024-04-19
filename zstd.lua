@@ -21,6 +21,8 @@ ffi.cdef[[
 typedef struct ZSTD_CCtx_s ZSTD_CCtx;
 ZSTD_CCtx* ZSTD_createCCtx(void);
 size_t     ZSTD_freeCCtx(ZSTD_CCtx* cctx);
+size_t     ZSTD_compressCCtx(ZSTD_CCtx* cctx, void* dst, size_t dstCapacity,
+                         const void* src, size_t srcSize, int compressionLevel);
 
 typedef struct ZSTD_DCtx_s ZSTD_DCtx;
 ZSTD_DCtx* ZSTD_createDCtx(void);
@@ -213,6 +215,25 @@ function _M:decompress (cBuff)
       return nil, err
    end
    return decompress_stream(dstream, cBuff)
+end
+
+
+function _M:simpleCompress(inBuff, cLevel)
+    local cLevel = cLevel or 1
+    local inSize = #inBuff
+
+    local cBuffSize = zstd.ZSTD_compressBound(inSize)
+    local cBuff = ffi_new("char[?]", cBuffSize)
+    local cctx = zstd.ZSTD_createCCtx()
+    local cSize = zstd.ZSTD_compressCCtx(cctx, cBuff, cBuffSize,
+                                                inBuff, inSize, cLevel)
+    zstd.ZSTD_freeCCtx(cctx)
+    if zstd.ZSTD_isError(cSize) ~= 0 then
+        return nil, "ZSTD_compressCCtx() error: "
+            .. ffi_str(zstd.ZSTD_getErrorName(cSize))
+    end
+
+    return ffi_str(cBuff, cSize)
 end
 
 
